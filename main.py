@@ -15,9 +15,9 @@ pp = pprint.PrettyPrinter(indent=4)
 # Do we consider hashes invalid if they do not have at least the specified hex length?
 STRICT_HEX_LENGTH = True  # Ideally this should be true
 # How many characters we need in a hex string for it to be considered a valid hash
-RESTRICT_HEX_LENGTH_TO = 32  # Ideally should be set to 64
+RESTRICT_HEX_LENGTH_TO = 64  # Ideally should be set to 64
 # Does a hash have to have a length equal or at least equal to RESTRICT_HEX_LENGTH_TO
-ALLOW_OVER_MAX_LENGTH_HEX = True  # Ideally should be false
+ALLOW_OVER_MAX_LENGTH_HEX = False  # Ideally should be false
 
 
 class Node:
@@ -111,13 +111,8 @@ def remerge_hash_text(words):
 def read_data():
     soup = Soup(open("comments.html"), "html.parser")
     comments = soup.find_all('div', {'class', 'comment-container'})
-    #comments_container = comments.find('div', {'class', 'comments'})
     top_level_comments = []
     parsed_comments = []
-    # for comment in comments:
-    #    if len(comment['class']) == 1:
-    #        top_level_comments.append(comment)
-    # for comment in top_level_comments:
     for comment in comments:
         comment_data = {}
         parsed_comments.insert(0, comment_data)
@@ -179,10 +174,13 @@ def read_data():
 
 
 def process_data(data):
-    # head = Node("Richard Buckland", "1+Service NSW+0f603b5f322a16568bf7b0acff51008466408cdccbfeff675118bbde8ca49b50+11",
-    #            0x083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33)
-    head = Node("Calvin Long", "24+Transport NSW+012313510be6865ad45f100211abfb110779a8cbd868636dd4f75a2b839180f+3",
-                0x02ae526285a5e2d8f5cf585bf8fb6f80532a066c3935ff1161754a1f49e7d678)
+    # As of time of writing, there are essentially two completely separate branches of BuckCoin due to a typo.
+    # Comment out either of these head nodes in order to see the branch each node is the head of.
+
+    head = Node("Richard Buckland", "1+Service NSW+0f603b5f322a16568bf7b0acff51008466408cdccbfeff675118bbde8ca49b50+11",
+                0x083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33)
+    # head = Node("Calvin Long", "24+Transport NSW+012313510be6865ad45f100211abfb110779a8cbd868636dd4f75a2b839180f+3",
+    #            0x02ae526285a5e2d8f5cf585bf8fb6f80532a066c3935ff1161754a1f49e7d678)
     nodes = []
     for comment in data:
         new_node = Node(comment['name'],
@@ -198,36 +196,6 @@ def process_data(data):
 def get_number(comment):
     print(comment)
     return int(comment['hash_text'].split('+')[0])
-
-
-def test():
-    head = Node("Richard Buckland", "1+Service NSW+0f603b5f322a16568bf7b0acff51008466408cdccbfeff675118bbde8ca49b50+11",
-                0x083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33)
-    # second = Node("Ben Wilson", "2+COVID Vaccine+083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33+80",
-    #              0x05733fe611da9f23667db266826d395301482a756ec22cdfac6609db6ade079e)
-    # third = Node("Anthony Parco", "3+Transport NSW+05733fe611da9f23667db266826d395301482a756ec22cdfac6609db6ade079e+0",
-    #             0x07a935b62f91ae22b99b0b639bdbd2687fe184454ed430f511ae00d466de453a)
-    # alternate_second = Node("Jinglin (Jane) Wang",
-    #                        "2+Facebook+083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33+26", 0x06e05e897b00131814e7db22cb2885c58130fc7d825b29da7771f84b8091ac29)
-    data = [
-        {
-            "name": "Ben Willson",
-            "hash_text": "2+COVID Vaccine+083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33+8",
-            "hash_hex": "05733fe611da9f23667db266826d395301482a756ec22cdfac6609db6ade079e"
-        },
-        {
-            "name": "Anthony Parco",
-            "hash_text": "3+Transport NSW+05733fe611da9f23667db266826d395301482a756ec22cdfac6609db6ade079e+0",
-            "hash_hex": "07a935b62f91ae22b99b0b639bdbd2687fe184454ed430f511ae00d466de453a"
-        }, ]
-    for comment in data:
-        new_node = Node(comment['name'],
-                        comment['hash_text'], int(comment['hash_hex'], 16))
-        head.add_node(new_node)
-    # head.add_node(second)
-    # head.add_node(third)
-    # head.add_node(alternate_second)
-    display_graph(head)
 
 
 def display_graph(head):
