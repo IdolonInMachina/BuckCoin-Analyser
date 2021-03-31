@@ -6,10 +6,7 @@ import bs4
 from bs4 import BeautifulSoup as Soup
 import re
 import json
-
-import pprint
-pp = pprint.PrettyPrinter(indent=4)
-
+import hashlib
 
 # Settings
 # Do we consider hashes invalid if they do not have at least the specified hex length?
@@ -29,12 +26,44 @@ class Node:
         self.hash_hex = hash_hex
         self.follows = None
         self.followed_by = []
+        self.valid = self.validate()
 
     def __str__(self):
         return f"{self.number} from {self.name}"
 
     def __repr__(self):
         return f"{self.number} from {self.name}"
+
+    def validate(self):
+        # To be valid, it needs to link to the previous node correctly,
+        # the hash hex needs to be the value received when hashing the plain text, and
+        # both hashes need to be valid hex.
+
+        # If a node does not follow anything, return None
+        if self.follows is None:
+            return None
+
+        # Check it links to the previous node correctly
+        if int(self.previous_hash, 16) != int(self.follows.hash_hex, 16):
+            return False
+        combined_hash_text = f"{self.hash_text}\n"
+        hashed_value = hashlib.sha256(combined_hash_text.encode()).hexdigest()
+        if int(self.hash_hex, 16) != int(hashed_value, 16):
+            return False
+        if not self.valid_hex_hash(str(self.hash_hex)):
+            return False
+        if not self.valid_hex_hash(str(self.previous_hash)):
+            return False
+        return True
+
+    def valid_hex_hash(self, hash_hex):
+        try:
+            int(hash_hex, 16)
+            # Remove any whitespace
+            hash_hex = ''.join(hash_hex.split())
+            return hash_hex[0] == '0' and hash_hex[1].isnumeric() and len(hash_hex) == 64
+        except ValueError:
+            return False
 
     def add_to_graph(self, graph):
         # Presume that we have already been added to the graph by someone above us
@@ -46,12 +75,13 @@ class Node:
 
     def extract_data(self):
         parts = self.hash_text.split('+')
-        self.previous_hash = parts[2]
+        self.previous_hash = parts[2].replace(' ', '')
 
     def add_node(self, node):
-        if int(node.previous_hash, 16) == self.hash_hex:
+        if int(node.previous_hash, 16) == int(self.hash_hex, 16):
             self.followed_by.append(node)
             node.follows = self
+            node.valid = node.validate()
             return True
 
         for follower in self.followed_by:
@@ -86,8 +116,6 @@ def find_hash_hex(array):
             elif not STRICT_HEX_LENGTH:
                 return line
             else:
-                print(f"Found invalid hash hex: {line}")
-                print(array)
                 continue
         except ValueError:
             continue
@@ -178,13 +206,13 @@ def process_data(data):
     # Comment out either of these head nodes in order to see the branch each node is the head of.
 
     head = Node("Richard Buckland", "1+Service NSW+0f603b5f322a16568bf7b0acff51008466408cdccbfeff675118bbde8ca49b50+11",
-                0x083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33)
+                "083eaee1b4dc40f7ffa14d23b3ea78059b5cb3b529dc9e24f508160bcddd6e33")
     # head = Node("Calvin Long", "24+Transport NSW+012313510be6865ad45f100211abfb110779a8cbd868636dd4f75a2b839180f+3",
-    #            0x02ae526285a5e2d8f5cf585bf8fb6f80532a066c3935ff1161754a1f49e7d678)
+    #            "02ae526285a5e2d8f5cf585bf8fb6f80532a066c3935ff1161754a1f49e7d678")
     nodes = []
     for comment in data:
         new_node = Node(comment['name'],
-                        comment['hash_text'], int(comment['hash_hex'], 16))
+                        comment['hash_text'], comment['hash_hex'])
         head.add_node(new_node)
         nodes.append(new_node)
     with open("output.json", 'w') as f:
@@ -194,7 +222,6 @@ def process_data(data):
 
 
 def get_number(comment):
-    print(comment)
     return int(comment['hash_text'].split('+')[0])
 
 
@@ -202,8 +229,18 @@ def display_graph(head):
     G = nx.Graph()
     G.add_node(head)
     head.add_to_graph(G)
+    colour_map = []
+    for node in G:
+        colour = ''
+        if node.valid is True:
+            colour = 'green'
+        if node.valid is False:
+            colour = 'red'
+        if node.valid is None:
+            colour = 'grey'
+        colour_map.append(colour)
     pos = nx.nx_pydot.graphviz_layout(G, prog="dot")
-    nx.draw(G, pos, with_labels=True, arrows=True)
+    nx.draw(G, pos, node_color=colour_map, with_labels=True, arrows=True)
     plt.show()
 
 
